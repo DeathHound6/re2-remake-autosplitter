@@ -1,8 +1,9 @@
 //Resident Evil 2 Remake Autosplitter
 //By CursedToast 1/28/2019
 //By VideoGameRoulette & DeathHound 08/26/2023
-//Sigscans/Rework by TheDementedSalad 
-//Last updated 01 May 2024
+//Sigscans/Rework by TheDementedSalad
+//Hunk integrattion by DeathHound
+//Last updated 22 April 2025
 
 state("re2"){}
 
@@ -80,12 +81,14 @@ update
     if (!settings["3Dig"])
         vars.Helper.Texts.RemoveAll();
 
-    if (settings["3Dig"]) {
+    if (settings["3Dig"])
+    {
         vars.TotalTimeInSeconds = current.GameElapsedTime - current.DemoSpendingTime - current.PauseSpendingTime;
         vars.Helper.Texts["Total Time"].Right = TimeSpan.FromSeconds(vars.TotalTimeInSeconds / 1000000.0).ToString(@"hh\:mm\:ss\.fff");
     }
 
-    if (settings["3Dig"]) {
+    if (settings["3Dig"])
+    {
         if (current.Results == 1 && old.Results != 1)
             game.WriteValue<byte>(game.ReadPointer((IntPtr)vars.Clock) + 0x50, 0);
     }
@@ -95,7 +98,8 @@ onStart
 {
     vars.completedSplits.Clear();
 
-    if (settings["3Dig"]) {
+    if (settings["3Dig"])
+    {
         vars.Helper.Texts["Total Time"].Left = "Time:";
         vars.Helper.Texts["Total Time"].Right = "00:00:00.000";
     }
@@ -103,7 +107,14 @@ onStart
 
 start
 {
-    return (old.Event == "001" || old.Event == "910") && current.Event != old.Event;
+    if (settings["DLC"])
+    {
+        var time = (current.GameElapsedTime - current.DemoSpendingTime - current.PauseSpendingTime) / 1000000.0;
+        if (settings["Hunk"])
+            return time > 0.1 && time < 0.23;
+    }
+    else
+        return (old.Event == "001" || old.Event == "910") && current.Event != old.Event;
 }
 
 split
@@ -116,10 +127,12 @@ split
     int[] currentWeapon = (current.weapon as int[]);
     int[] oldWeapon = (old.weapon as int[]);
 
-    if (!currentItem.SequenceEqual(oldItem)) {
+    if (!currentItem.SequenceEqual(oldItem))
+    {
         int[] delta = (currentItem as int[]).Where((v, i) => v != oldItem[i]).ToArray();
 
-        foreach (int item in delta) {
+        foreach (int item in delta)
+        {
             if (item != 0 && current.SurvivorType != 2)
                 setting = "Item_" + item;
             if ((current.Scenario == 2 || current.Scenario == 3) && item == 241)
@@ -127,33 +140,58 @@ split
         }
     }
 
-    if (!currentWeapon.SequenceEqual(oldWeapon)) {
+    if (!currentWeapon.SequenceEqual(oldWeapon))
+    {
         int[] delta = (currentWeapon as int[]).Where((v, i) => v != oldWeapon[i]).ToArray();
 
-        foreach (int weapon in delta) {
+        foreach (int weapon in delta)
+        {
             if (weapon != 0 && weapon != -1)
                 setting = "Weapon_" + weapon;
         }
     }
 
-    if (current.MapID != old.MapID)
-        setting = "Map_" + current.MapID;
+    if (settings["DLC"])
+    {
+        if (settings["Hunk"])
+        {
+            if((current.MapID == 332 && old.MapID == 330) && timer.CurrentSplitIndex == 0)
+                return true;
+            else if((current.MapID == 352 && old.MapID == 319) && timer.CurrentSplitIndex == 1)
+                return true;
+            else if((current.MapID == 277 && old.MapID == 353) && timer.CurrentSplitIndex == 2)
+                return true;
+            else if((current.MapID == 112 && old.MapID == 239) &&  timer.CurrentSplitIndex == 3)
+                return true;
+            else if((current.MapID == 112 && old.MapID == 249) &&  timer.CurrentSplitIndex == 4)
+                return true;
+            else if((current.MapID == 260 && old.MapID == 268) && timer.CurrentSplitIndex == 5)
+                return true;
+            else if((current.GmeStartValue == 0 && old.GmeStartValue == 1) && timer.CurrentSplitIndex == 6)
+                return true;
+        }
+    }
+    else
+    {
+        // Main Game
+        if (current.MapID != old.MapID)
+            setting = "Map_" + current.MapID;
 
-    if ((current.MapID == 112 || current.MapID == 261) && current.MapID != old.MapID)
-        setting = "Map_RPD";
+        if ((current.MapID == 112 || current.MapID == 261) && current.MapID != old.MapID)
+            setting = "Map_RPD";
 
-    if (current.EventID != old.EventID && !string.IsNullOrEmpty(current.EventID))
-        setting = "Event_" + current.Event;
+        if (current.EventID != old.EventID && !string.IsNullOrEmpty(current.EventID))
+            setting = "Event_" + current.Event;
 
-    if (current.Results == 1 && old.Results != 1)
-        setting = "Results";
-
-    // Debug. Comment out before release.
-    if (!string.IsNullOrEmpty(setting))
-        vars.Log(setting);
+        if (current.Results == 1 && old.Results != 1)
+            setting = "Results";
+    }
 
     if (settings.ContainsKey(setting) && vars.completedSplits.Add(setting))
+    {
+        vars.Log($"Split: {setting}");
         return settings[setting];
+    }
 }
 
 gameTime
@@ -168,5 +206,12 @@ isLoading
 
 reset
 {
-    return (current.Event == "011" || current.Event == "910") && current.Event != old.Event;
+    if (settings["DLC"])
+    {
+        if (settings["Hunk"])
+            return (current.GameElapsedTime - current.DemoSpendingTime - current.PauseSpendingTime) / 1000000.0 < 0.01;
+    }
+    else
+        // Main Game
+        return (current.Event == "011" || current.Event == "910") && current.Event != old.Event;
 }
