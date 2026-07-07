@@ -83,6 +83,7 @@ init
 	vars.Helper["Fade6"] = vars.Helper.Make<bool>(FadeManager, 0x50, 0x48, 0x18, 0x68);
 
 	vars.Helper["DARankPoints"] = vars.Helper.Make<float>(GameRankSystem, 0x5C);
+	vars.Helper["DARank"] = vars.Helper.Make<int>(GameRankSystem, 0x58);
 	
 	vars.Inv = InventoryManager;
 	vars.Clock = GameClock;
@@ -105,6 +106,7 @@ init
 		});
 	#endregion
 	current.DARankPoints = 0;
+	current.DARank = 0;
 }
 
 update
@@ -112,7 +114,12 @@ update
 	vars.Helper.Update();
 	vars.Helper.MapPointers();
 
-	vars.SetTextIfEnabled("DA", "Difficulty Adjustment", current.DARankPoints);
+	vars.SetTextIfEnabled(
+		"DA",
+		"DA Rank/Score",
+		string.Format("{0} ({1})", (int)current.DARank, (int)current.DARankPoints)
+	);
+	
 	
 	current.item = new int[20].Select((_, i)
 		=> new DeepPointer(vars.Inv, 0x50, 0x98, 0x10, 0x20 + (i * 8), 0x18, 0x10, 0x10).Deref<int>(game))
